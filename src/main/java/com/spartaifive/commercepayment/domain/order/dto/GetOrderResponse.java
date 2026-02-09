@@ -9,14 +9,13 @@ import java.util.UUID;
 import com.spartaifive.commercepayment.domain.order.entity.Order;
 import com.spartaifive.commercepayment.domain.order.entity.OrderProduct;
 import com.spartaifive.commercepayment.domain.order.entity.OrderStatus;
-import com.spartaifive.commercepayment.domain.product.entity.Product;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public class AddOrderResponse {
+public class GetOrderResponse {
     private final List<ResponseProduct> orderProducts;
     private final ResponseOrder order;
 
@@ -63,7 +62,7 @@ public class AddOrderResponse {
         }
     }
 
-    public static AddOrderResponse fromOrderAndOrderProducts(
+    public static GetOrderResponse fromOrderAndOrderProducts(
             Order order,
             List<OrderProduct> orderProducts
     ) {
@@ -75,7 +74,7 @@ public class AddOrderResponse {
 
         ResponseOrder responseOrder = ResponseOrder.of(order);
 
-        return new AddOrderResponse(
+        return new GetOrderResponse(
             resposneProducts,
             responseOrder
         );

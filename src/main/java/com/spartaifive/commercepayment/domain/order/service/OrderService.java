@@ -1,7 +1,8 @@
 package com.spartaifive.commercepayment.domain.order.service;
 
 import com.spartaifive.commercepayment.domain.order.dto.AddOrderRequest;
-import com.spartaifive.commercepayment.domain.order.dto.AddOrderResponse;
+import com.spartaifive.commercepayment.domain.order.dto.GetManyOrdersResponse;
+import com.spartaifive.commercepayment.domain.order.dto.GetOrderResponse;
 import com.spartaifive.commercepayment.domain.order.entity.Order;
 import com.spartaifive.commercepayment.domain.order.entity.OrderProduct;
 import com.spartaifive.commercepayment.domain.order.repository.OrderProductRepository;
@@ -34,7 +35,7 @@ public class OrderService {
     // 이게 좋은건지는 모르겠습니다.
 
     @Transactional
-    public AddOrderResponse addOrder(AddOrderRequest req) {
+    public GetOrderResponse addOrder(AddOrderRequest req) {
         req = OrderSupport.NormalizeAddOrderRequest(req);
 
         Map<Long, AddOrderRequest.RequestProduct> productIdToReq = new HashMap<>();
@@ -107,8 +108,33 @@ public class OrderService {
         order = orderRepository.saveAndFlush(order);
         orderProducts = orderProductRepository.saveAllAndFlush(orderProducts);
 
-        return AddOrderResponse.fromOrderAndOrderProducts(
+        return GetOrderResponse.fromOrderAndOrderProducts(
                 order,
                 orderProducts);
+    }
+
+
+    public GetOrderResponse getOrder(Long orderId) {
+        // TODO: custom exception 생성
+        Order order = orderRepository.findById(orderId).orElseThrow(()->
+                new RuntimeException(String.format("이 %s id의 주문을 찾을 수 없습니다.", orderId)));
+
+        List<OrderProduct> orderProducts = orderProductRepository.findAllByOrder_Id(order.getId());
+
+        return GetOrderResponse.fromOrderAndOrderProducts(
+                order,
+                orderProducts);
+    }
+
+    public List<GetManyOrdersResponse> getManyOrders() {
+        List<Order> orders = orderRepository.findAll();
+
+        List<GetManyOrdersResponse> dtos = new ArrayList<>();
+
+        for (final Order order : orders) {
+            dtos.add(GetManyOrdersResponse.of(order));
+        }
+
+        return dtos;
     }
 }
