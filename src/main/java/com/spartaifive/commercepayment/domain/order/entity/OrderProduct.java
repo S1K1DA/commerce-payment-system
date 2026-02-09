@@ -27,7 +27,6 @@ public class OrderProduct {
     @Column(nullable = false)
     private String productName;
 
-    // TODO: 팀원들과 BigDecimal로의 변경을 상의
     @NotNull
     @Min(0)
     // 이렇게 된다면 99,999,999.99 원이 저희 쇼핑몰의 최대 금액이 됩니다.
