@@ -2,9 +2,13 @@ package com.spartaifive.commercepayment.domain.user.service;
 
 import com.spartaifive.commercepayment.domain.user.dto.CreateUserRequest;
 import com.spartaifive.commercepayment.domain.user.dto.CreateUserResponse;
+import com.spartaifive.commercepayment.domain.user.dto.LoginRequest;
+import com.spartaifive.commercepayment.domain.user.dto.LoginResponse;
 import com.spartaifive.commercepayment.domain.user.entity.User;
 import com.spartaifive.commercepayment.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserDetailsService userDetailsService;
 
     @Transactional
     public CreateUserResponse save(CreateUserRequest request){
@@ -37,5 +42,14 @@ public class UserService {
                 userSaved.getEmail(),
                 userSaved.getPhone()
         );
+    }
+
+    @Transactional
+    public LoginResponse login(LoginRequest request){
+        UserDetails userDetails = userDetailsService.loadUserByEmail(request.getEmail())
+
+        if(!passwordEncoder.matches(request.getPassword())){
+
+        }
     }
 }

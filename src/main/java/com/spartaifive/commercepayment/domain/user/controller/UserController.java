@@ -1,5 +1,6 @@
 package com.spartaifive.commercepayment.domain.user.controller;
 
+import com.spartaifive.commercepayment.common.response.DataResponse;
 import com.spartaifive.commercepayment.domain.user.dto.CreateUserRequest;
 import com.spartaifive.commercepayment.domain.user.dto.CreateUserResponse;
 import com.spartaifive.commercepayment.domain.user.service.UserService;
@@ -19,8 +20,13 @@ public class UserController {
     private final UserService userService;
 
     @PostMapping("/signup")
-    public ResponseEntity<CreateUserResponse> create(@Valid @RequestBody CreateUserRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(userService.save(request));
+    public ResponseEntity<DataResponse<CreateUserResponse>> create(@Valid @RequestBody CreateUserRequest request) {
+        CreateUserResponse res = userService.save(request);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(DataResponse.success("SUCCESS", res));
     }
+    @PostMapping("/login")
+
 
 }
