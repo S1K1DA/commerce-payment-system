@@ -1,15 +1,21 @@
 package com.spartaifive.commercepayment.domain.user.service;
 
-
+import com.spartaifive.commercepayment.common.security.JwtTokenProvider;
+import com.spartaifive.commercepayment.domain.user.dto.request.LoginRequest;
 import com.spartaifive.commercepayment.domain.user.dto.request.SignupRequest;
 import com.spartaifive.commercepayment.domain.user.dto.response.SignupResponse;
 import com.spartaifive.commercepayment.domain.user.entity.MembershipGrade;
 import com.spartaifive.commercepayment.domain.user.entity.User;
+import com.spartaifive.commercepayment.domain.user.entity.UserRefreshToken;
 import com.spartaifive.commercepayment.domain.user.repository.MembershipGradeRepository;
+import com.spartaifive.commercepayment.domain.user.repository.UserRefreshTokenRepository;
 import com.spartaifive.commercepayment.domain.user.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -18,9 +24,14 @@ public class UserService {
     private final UserRepository userRepository;
     private final MembershipGradeRepository membershipGradeRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserRefreshTokenRepository userRefreshTokenRepository;
+    private final JwtTokenProvider jwtTokenProvider;
 
+    /**
+     * 회원가입
+     * 정은식
+     */
     public SignupResponse signup(SignupRequest request) {
-
         // 이메일, 전화번호 중복 체크
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
@@ -28,14 +39,11 @@ public class UserService {
         if (userRepository.existsByPhone(request.getPhone())) {
             throw new IllegalArgumentException("이미 사용 중인 전화번호입니다.");
         }
-
         // 기본 멤버십 조회
         MembershipGrade normalGrade = membershipGradeRepository.findByName("NORMAL")
                 .orElseThrow(() -> new IllegalStateException("기본 멤버십(NORMAL)이 존재하지 않습니다."));
-
         // 비밀번호 암호화
         String encodedPassword = passwordEncoder.encode(request.getPassword());
-
         // User 생성 (도메인 책임)
         User user = User.create(
                 normalGrade,
@@ -44,10 +52,8 @@ public class UserService {
                 encodedPassword,
                 request.getPhone()
         );
-
         // 저장
         User savedUser = userRepository.save(user);
-
         // Response DTO 반환
         return new SignupResponse(
                 savedUser.getId(),
@@ -56,6 +62,38 @@ public class UserService {
                 savedUser.getCreatedAt(),
                 savedUser.getMembershipUpdatedDate()
         );
+    }
+
+    @Transactional
+    public String login(LoginRequest request) {
+
+        // 이메일로 찾기
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() ->
+                        new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다.")
+                );
+        // 비밀번호 검증
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다.");
+        }
+
+        // 기존 Refresh Token 정리 - 재로그인
+        userRefreshTokenRepository.deleteByUser(user);
+
+        // 리프레시 토큰 생성
+        String refreshTokenValue = jwtTokenProvider.createRefreshToken(user.getEmail());
+
+        // Refresh Token 생성 (정적 팩토리 메서드 사용)
+        UserRefreshToken refreshToken = UserRefreshToken.create(
+                user,
+                refreshTokenValue,
+                LocalDateTime.now().plusDays(7)
+        );
+
+        userRefreshTokenRepository.save(refreshToken);
+
+        // AccessToken 생성 -> 반환
+        return jwtTokenProvider.createAccessToken(user.getEmail());
     }
 }
 
