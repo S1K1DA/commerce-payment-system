@@ -8,6 +8,7 @@ import com.spartaifive.commercepayment.domain.order.repository.OrderProductRepos
 import com.spartaifive.commercepayment.domain.order.repository.OrderRepository;
 import com.spartaifive.commercepayment.domain.order.util.OrderSupport;
 import com.spartaifive.commercepayment.domain.product.entity.Product;
+import com.spartaifive.commercepayment.domain.product.entity.ProductStatus;
 import com.spartaifive.commercepayment.domain.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -27,7 +28,11 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderProductRepository orderProductRepository;
 
-    // TODO: 현재는 단종된 상품 뿐만 아니라 품절된 상품도 주문 가능 합니다.
+    // TODO: 현재 선택한 상품에 대해서 조회 할 때 
+    // 예를들어 고객이 포카칩, 사과 이렇게 샀을 때
+    // 사과만 단종이 되었을 경우 바로 에러를 내뿜습니다.
+    // 이게 좋은건지는 모르겠습니다.
+
     @Transactional
     public AddOrderResponse addOrder(AddOrderRequest req) {
         req = OrderSupport.NormalizeAddOrderRequest(req);
@@ -41,7 +46,34 @@ public class OrderService {
         }
 
         // 요청에서 들어온 상품 들을 조회
-        List<Product> products = productRepository.findAllById(productIdToReq.keySet());
+        // 이때 단종 이나 품정 상품은 제외
+        List<Product> products = productRepository.findAllByStatusAndId(
+                ProductStatus.ON_SALE, productIdToReq.keySet());
+
+        // 이때 상품 목록이 없다면 에러를 반환
+        // TODO: custom exception 생성
+        if (products.size() <= 0) {
+            throw new RuntimeException("선택된 상품이 없습니다.");
+        }
+
+        // 주문 상품의 갯수와 실제 상품의 갯수가 다를 경우 에러 반환
+        if (products.size() != req.getOrderProducts().size()) {
+            throw new RuntimeException("모든 주문을 완료 할 수 없습니다.");
+        }
+
+        // 주문 시도 양보다 재고가 적으면 에러 반환
+        // TODO: 여기서 체크하는게 맞나요?
+        for (final Product p : products) {
+            Long quantity = productIdToReq.get(p.getId()).getQuantity();
+            if (p.getStock() < quantity) {
+                throw new RuntimeException(String.format(
+                    "주문할려는 상품 %s의 재고(%s)가 주문 갯수(%s)보다 많습니다.",
+                    p.getName(),
+                    p.getStock(),
+                    quantity
+                ));
+            }
+        }
 
         // 총 금액을 계산
         BigDecimal total = BigDecimal.ZERO;
@@ -75,10 +107,8 @@ public class OrderService {
         order = orderRepository.saveAndFlush(order);
         orderProducts = orderProductRepository.saveAllAndFlush(orderProducts);
 
-        AddOrderResponse res = AddOrderResponse.fromOrderAndOrderProducts(
+        return AddOrderResponse.fromOrderAndOrderProducts(
                 order,
                 orderProducts);
-
-        return res;
     }
 }
