@@ -5,10 +5,12 @@ import com.spartaifive.commercepayment.domain.order.service.OrderService;
 import com.spartaifive.commercepayment.domain.payment.dto.PaymentAttemptRequest;
 import com.spartaifive.commercepayment.domain.payment.dto.PaymentAttemptResponse;
 import com.spartaifive.commercepayment.domain.payment.service.PaymentService;
+import com.spartaifive.commercepayment.domain.user.entity.User;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,8 +25,8 @@ public class PaymentController {
 
     @PostMapping
     public ResponseEntity<DataResponse<PaymentAttemptResponse>> createPayment(
-            @Valid @RequestBody PaymentAttemptRequest request) {
-        PaymentAttemptResponse response = paymentService.createPayment(request);
+            @AuthenticationPrincipal User user, @Valid @RequestBody PaymentAttemptRequest request) {
+        PaymentAttemptResponse response = paymentService.createPayment(user.getId(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(DataResponse.success(HttpStatus.CREATED.name(), response));
     }

@@ -22,6 +22,9 @@ public class Payment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id; // payment Record ID
 
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "order_id", nullable = false, foreignKey = @ForeignKey(name = "fk_payments_order"))
     private Order order;
@@ -40,6 +43,7 @@ public class Payment {
     @Column(name = "merchant_payment_id", length = 100)
     private String merchantPaymentId;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private PaymentStatus paymentStatus;
     /**
@@ -60,25 +64,33 @@ public class Payment {
     private LocalDateTime updatedAt;
 
     @Column(name = "paid_at")
-    private LocalDateTime paid_at;
+    private LocalDateTime paidAt;
 
     @Column(name = "failed_at")
     private LocalDateTime failedAt;
 
     @Column(name = "refunded_at")
-    private LocalDateTime refunded_at;
+    private LocalDateTime refundedAt;
 
-    public static Payment createAttempt(Order order, BigDecimal expectedAmount) {
+    public static Payment createAttempt(
+            Long userId, Order order, BigDecimal expectedAmount, String merchantPaymentId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("userId가 존재하지 않습니다");
+        }
         if (order == null) {
             throw new IllegalArgumentException("주문이 존재하지 않습니다");
         }
-        if (expectedAmount == null) {
+        if (expectedAmount == null || expectedAmount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("주문 금액(예상 결제 금액)은 0보다 커야합니다");
         }
         Payment payment = new Payment();
+        payment.userId = userId;
         payment.order = order;
         payment.expectedAmount = expectedAmount;
+        payment.merchantPaymentId = merchantPaymentId;
         payment.paymentStatus = PaymentStatus.READY;
+        payment.attemptedAt = LocalDateTime.now();
+        payment.updatedAt = LocalDateTime.now();
 
         return payment;
     }

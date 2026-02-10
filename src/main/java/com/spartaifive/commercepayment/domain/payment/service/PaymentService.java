@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -26,13 +27,16 @@ public class PaymentService {
      * - 저장 후 Response DTO 반환
      */
     @Transactional
-    public PaymentAttemptResponse createPayment(PaymentAttemptRequest request) {
+    public PaymentAttemptResponse createPayment(Long userId, PaymentAttemptRequest request) {
         Order order = orderRepository.findById(request.orderId()).orElseThrow(
                 () -> new IllegalArgumentException("주문이 존재하지 않습니다 orderId=" + request.orderId())
         ); // NotFoundException 예외 처리
         BigDecimal expectedAmount = order.getTotalPrice();
 
-        Payment payment = Payment.createAttempt(order, expectedAmount);
+        // merchantId 생성
+        String merchantPaymentId = "pay_" + UUID.randomUUID();
+
+        Payment payment = Payment.createAttempt(userId, order, expectedAmount, merchantPaymentId);
         Payment savedPayment = paymentRepository.save(payment);
 
         return PaymentAttemptResponse.from(savedPayment);
