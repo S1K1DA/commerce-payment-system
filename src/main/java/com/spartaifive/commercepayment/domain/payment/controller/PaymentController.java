@@ -22,9 +22,9 @@ public class PaymentController {
     private final OrderService orderService;
 
     @PostMapping
-    public ResponseEntity<DataResponse<PaymentAttemptResponse>> createAttempt(
+    public ResponseEntity<DataResponse<PaymentAttemptResponse>> createPayment(
             @Valid @RequestBody PaymentAttemptRequest request) {
-        PaymentAttemptResponse response = paymentService.createAttempt(request);
+        PaymentAttemptResponse response = paymentService.createPayment(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(DataResponse.success(HttpStatus.CREATED.name(), response));
     }

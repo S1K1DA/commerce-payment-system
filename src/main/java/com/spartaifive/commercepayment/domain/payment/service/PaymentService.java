@@ -26,7 +26,7 @@ public class PaymentService {
      * - 저장 후 Response DTO 반환
      */
     @Transactional
-    public PaymentAttemptResponse createAttempt(PaymentAttemptRequest request) {
+    public PaymentAttemptResponse createPayment(PaymentAttemptRequest request) {
         Order order = orderRepository.findById(request.orderId()).orElseThrow(
                 () -> new IllegalArgumentException("주문이 존재하지 않습니다 orderId=" + request.orderId())
         ); // NotFoundException 예외 처리
