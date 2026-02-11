@@ -3,11 +3,10 @@ package com.spartaifive.commercepayment.domain.payment.service;
 import com.spartaifive.commercepayment.common.external.portone.PortOneClient;
 import com.spartaifive.commercepayment.common.external.portone.PortOnePaymentResponse;
 import com.spartaifive.commercepayment.domain.order.entity.Order;
+import com.spartaifive.commercepayment.domain.order.entity.OrderProduct;
+import com.spartaifive.commercepayment.domain.order.repository.OrderProductRepository;
 import com.spartaifive.commercepayment.domain.order.repository.OrderRepository;
-import com.spartaifive.commercepayment.domain.payment.dto.ConfirmPaymentRequest;
-import com.spartaifive.commercepayment.domain.payment.dto.ConfirmPaymentResponse;
-import com.spartaifive.commercepayment.domain.payment.dto.PaymentAttemptRequest;
-import com.spartaifive.commercepayment.domain.payment.dto.PaymentAttemptResponse;
+import com.spartaifive.commercepayment.domain.payment.dto.*;
 import com.spartaifive.commercepayment.domain.payment.entity.Payment;
 import com.spartaifive.commercepayment.domain.payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +14,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,6 +26,7 @@ import java.util.UUID;
 public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
+    private final OrderProductRepository orderProductRepository;
     private final PortOneClient portOneClient;
 
     /**
@@ -79,20 +83,92 @@ public class PaymentService {
             if (!existing.getUserId().equals(userId)) {
                 throw new IllegalStateException("결제 소유자가 아닙니다");
             }
-            return ConfirmPaymentResponse.from(existing);
+            return ConfirmPaymentSuccessResponse.from(existing);
         }
 
+        // orderId로 최신 결제 대기 상태의 결제 조회 (최신 READY)
+        Payment payment = paymentRepository.findLatestReadyByOrderId(request.orderId()).orElseThrow(
+                () -> new IllegalArgumentException("결제대기 상태인 결제가 존재하지 않습니다 orderId=" + request.orderId())
+        );
 
-//        if (payment.getPortonePaymentId() != null) {
-//            PortOnePaymentResponse portOneResponse = portOneClient.getPayment(payment.getPortonePaymentId());
-//            if (!portOneResponse.isPaid()) { // 결제 확정이 아니면 실패
-//                Payment failedPayment = payment.fail();
-//                paymentRepository.save(failedPayment);
-//                orderRepository.findById(failedPayment.getOrder().getId()).orElseThrow(
-//                        () ->
-//                )
-//            }
-//        }
+        if (!payment.getUserId().equals(userId)) {
+            throw new IllegalStateException("결제 소유자가 아닙니다");
+        }
+
+        // PortOne 결제 조회
+        PortOnePaymentResponse portOneResponse = portOneClient.getPayment(request.portonePaymentId());
+
+        // 결제 상태 검증
+        if (!portOneResponse.isPaid()) { // 결제 확정이 아니면 실패
+            payment.fail(request.portonePaymentId());
+            Payment failedPayment = paymentRepository.save(payment);
+            String failReason = "PortOne 결제가 확정 상태가 아닙니다 status =\" + portOneResponse.status()";
+            return ConfirmPaymentFailResponse.from(failedPayment, failReason);
+//            throw new IllegalStateException("PortOne 결제가 확정 상태가 아닙니다 status =" + portOneResponse.status());
+        }
+
+        // 결제 금액 검증
+        BigDecimal actualAmount = portOneResponse.amount() != null ? portOneResponse.amount().total() : null;
+        if (actualAmount == null) {
+            payment.fail(request.portonePaymentId());
+            Payment failedPayment = paymentRepository.save(payment);
+            throw new IllegalStateException("PortOne 결제 금액을 확인할 수 없습니다");
+        }
+
+        // expectAmount != actualAmount 비교 검증
+        if (payment.getExpectedAmount().compareTo(actualAmount) != 0) {
+            payment.fail(request.portonePaymentId());
+            Payment failedPayment = paymentRepository.save(payment);
+            throw new IllegalStateException(
+                    "결제 금액이 일치하지 않습니다 expected=" + payment.getExpectedAmount()
+                            + ", actual=" + actualAmount);
+        }
+
+        // 재고 검증 및 차감
+        Order order = payment.getOrder();
+        List<OrderProduct> orderProducts = orderProductRepository.findAllByOrder_Id(order.getId());
+
+        // 전체 주문 상품 재고 동시에 확인 검증
+        for (OrderProduct op :  orderProducts) {
+            Long qty = op.getQuantity();
+            Long stock = op.getProduct().getStock();
+            if (qty > stock) {
+                payment.fail(request.portonePaymentId());
+                Payment failedPayment = paymentRepository.save(payment);
+                throw new IllegalStateException(
+                        "재고 부족: productId=" + op.getProduct().getId()
+                                + ", quantity=" + qty + ", stock=" + stock
+                );
+            }
+        }
+
+        // 주문 상품 동시 차감
+        for (OrderProduct op :  orderProducts) {
+            op.getProduct().decreaseStock(op.getQuantity());
+        }
+
+        // 결제 확정 및 상태 전이
+        LocalDateTime paidAt = parsePortOneTime(portOneResponse.paidAt());
+        payment.confirm(request.portonePaymentId(), actualAmount, paidAt);
+        order.setStatusToCompleted();
+
+        Payment saved = paymentRepository.save(payment);
+        return ConfirmPaymentSuccessResponse.from(saved);
     }
 
+    // LocalDateTime.parse 불가로 임시 구현
+    private LocalDateTime parsePortOneTime(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return OffsetDateTime.parse(value).toLocalDateTime();
+        } catch (DateTimeParseException ignored) {
+            try {
+                return LocalDateTime.parse(value);
+            } catch (DateTimeParseException ignored2) {
+                return null;
+            }
+        }
+    }
 }
