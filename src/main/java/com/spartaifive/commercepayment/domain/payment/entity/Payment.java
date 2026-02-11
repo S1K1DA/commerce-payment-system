@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Getter
@@ -83,6 +84,9 @@ public class Payment {
         if (expectedAmount == null || expectedAmount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("주문 금액(예상 결제 금액)은 0보다 커야합니다");
         }
+        if (merchantPaymentId == null) {
+            throw new IllegalArgumentException("merchantId가 존재하지 않습니다");
+        }
         Payment payment = new Payment();
         payment.userId = userId;
         payment.order = order;
@@ -93,5 +97,55 @@ public class Payment {
         payment.updatedAt = LocalDateTime.now();
 
         return payment;
+    }
+
+    public Payment confirm(String portonePaymentId, BigDecimal actualAmount, LocalDateTime paidAt) {
+        validatePaymentStatus(PaymentStatus.PAID);
+
+        if (portonePaymentId == null || portonePaymentId.isBlank()) {
+            throw new IllegalArgumentException("portonePaymentId가 존재하지 않습니다");
+        }
+
+        if (this.portonePaymentId != null && !Objects.equals(portonePaymentId, this.portonePaymentId)) {
+            throw new IllegalStateException("이미 다른 portonePaymentId로 확정/실패 처리된 결제입니다");
+        }
+
+        this.portonePaymentId = portonePaymentId;
+        this.actualAmount = actualAmount;
+        this.paymentStatus = PaymentStatus.PAID;
+        this.paidAt = paidAt != null ? paidAt : LocalDateTime.now(); // portone paidAt이 없으면 씌우기
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public Payment fail(String portonePaymentId) {
+        validatePaymentStatus(PaymentStatus.FAILED);
+
+        if (portonePaymentId != null && !portonePaymentId.isBlank()) {
+            if (this.portonePaymentId != null && !Objects.equals(this.portonePaymentId, portonePaymentId)) {
+                throw new IllegalStateException("이미 다른 portonePaymentId로 확정/실패 처리된 결제입니다");
+            }
+            this.portonePaymentId = portonePaymentId;
+        }
+
+        this.paymentStatus =  PaymentStatus.FAILED;
+        this.failedAt =LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+
+        return this;
+    }
+
+    public Payment refund() {
+        validatePaymentStatus(PaymentStatus.REFUNDED);
+
+        this.paymentStatus =  PaymentStatus.REFUNDED;
+        this.refundedAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+        return this;
+    }
+
+    private void validatePaymentStatus(PaymentStatus paymentStatus) {
+        if (!this.paymentStatus.canTransition(paymentStatus)) {
+            throw new IllegalStateException("결제 상태 전이가 불가능합니다");
+        }
     }
 }

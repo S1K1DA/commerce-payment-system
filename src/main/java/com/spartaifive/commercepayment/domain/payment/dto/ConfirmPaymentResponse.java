@@ -11,7 +11,7 @@ public record ConfirmPaymentResponse(
         BigDecimal actualAmount,
         String status,
         String portonePaymentId,
-        LocalDateTime paid_at
+        LocalDateTime paidAt
 ) {
     public static ConfirmPaymentResponse from(Payment payment) {
         return new ConfirmPaymentResponse(
@@ -20,7 +20,7 @@ public record ConfirmPaymentResponse(
                 payment.getActualAmount(),
                 payment.getPaymentStatus().getStatusCode(),
                 payment.getPortonePaymentId(),
-                payment.getPaid_at()
+                payment.getPaidAt()
         );
     }
 }
