@@ -1,0 +1,71 @@
+package com.spartaifive.commercepayment.domain.point.tasks;
+
+import com.spartaifive.commercepayment.domain.payment.dto.ConfirmedPaymentAndUser;
+import com.spartaifive.commercepayment.domain.payment.entity.Payment;
+import com.spartaifive.commercepayment.domain.payment.repository.PaymentRepository;
+import com.spartaifive.commercepayment.domain.point.entity.Point;
+import com.spartaifive.commercepayment.domain.point.entity.PointStatus;
+import com.spartaifive.commercepayment.domain.point.repository.PointRepository;
+import com.spartaifive.commercepayment.domain.point.service.PointSupportService;
+import com.spartaifive.commercepayment.domain.user.entity.MembershipGrade;
+import com.spartaifive.commercepayment.domain.user.entity.User;
+import com.spartaifive.commercepayment.domain.user.repository.MembershipGradeRepository;
+import com.spartaifive.commercepayment.domain.user.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class PointTasks {
+    private final Clock clock;
+    private final UserRepository userRepository;
+    private final MembershipGradeRepository membershipGradeRepository;
+    private final PointSupportService pointSupportService;
+
+    @Scheduled(cron = "0 0 3 * * *")
+    @Transactional
+    public void calculateMembershipAndReadyPoints() {
+        LocalDateTime now = LocalDateTime.now(clock);
+
+        // TODO: 현재 한국시각을 기준으로 7일 이전을 기준으로 합니다.
+        // 근데 이게 세계화로 할 경우 어떤 일이 발생할지는 잘 모르겠습니다.
+
+        // 가장 가까운 하루로 변경
+        now = now
+                .withHour(0)
+                .withMinute(0)
+                .withSecond(0)
+                .withNano(0);
+
+        LocalDateTime paymentConfirmDay = now.minusDays(7);
+
+        List<Long> userIds = userRepository.findAllUserId();
+        List<MembershipGrade> memberships = membershipGradeRepository.findAll();
+        memberships = memberships.stream().sorted((a, b) -> a.getRequiredPurchaseAmount().compareTo(b.getRequiredPurchaseAmount())).toList();
+
+        for (Long userId : userIds) {
+            try {
+                pointSupportService.updateUserMembership(
+                        userId, memberships, paymentConfirmDay);
+            }catch(Exception e) {
+                log.error("[POINT_TASK]: failed to update user {} membership : {}", userId, e.getMessage());
+                continue; // 고객의 멤버쉽 등급이 결정되지 않으면 포인트를 계산 할 수 없으므로 skip
+            }
+
+            try {
+                pointSupportService.updateUserPoints(
+                        userId, memberships, paymentConfirmDay);
+            }catch(Exception e) {
+                log.error("[POINT_TASK]: failed to update user {} point: {}", userId, e.getMessage());
+            }
+        }
+    }
+}

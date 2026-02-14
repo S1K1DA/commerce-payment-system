@@ -4,6 +4,7 @@ import com.spartaifive.commercepayment.domain.order.entity.Order;
 import com.spartaifive.commercepayment.domain.payment.entity.Payment;
 import com.spartaifive.commercepayment.domain.user.entity.User;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -49,12 +50,42 @@ public class PointAudit {
     PointAuditType pointAuditType;
 
     // TODO: 왜 nullable인지 설명하기
-    @NotNull
     @Column(precision = 10, scale = 2, nullable = true)
+    @Min(0)
     BigDecimal amount;
 
     @NotNull
     @CreatedDate
     @Column(nullable = false, updatable = false)
     LocalDateTime createdAt;
+
+    public PointAudit(
+            User user,
+            Order order,
+            Payment payment,
+            Point point,
+            PointAuditType auditType
+    ) {
+        this.user = user;
+        this.order = order;
+        this.payment = payment;
+        this.point = point;
+        this.pointAuditType = auditType;
+    }
+
+    public PointAudit(
+            User user,
+            Order order,
+            Payment payment,
+            Point point,
+            PointAuditType auditType,
+            BigDecimal amount
+    ) {
+        this.user = user;
+        this.order = order;
+        this.payment = payment;
+        this.point = point;
+        this.pointAuditType = auditType;
+        this.amount = amount;
+    }
 }

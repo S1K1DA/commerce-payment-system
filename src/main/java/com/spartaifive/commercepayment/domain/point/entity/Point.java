@@ -14,6 +14,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Getter
 @Entity
@@ -32,12 +33,12 @@ public class Point {
 
     @NotNull
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_payment_id")
+    @JoinColumn(nullable = false, name = "parent_payment_id")
     Payment parentPayment;
 
     @NotNull
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_order_id")
+    @JoinColumn(nullable = false, name = "parent_order_id")
     Order parentOrder;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -58,4 +59,25 @@ public class Point {
     @LastModifiedDate
     @Column(nullable = false)
     LocalDateTime modifiedAt;
+
+    public Point(
+            Payment parentPayment,
+            Order parentOrder,
+            User ownerUser
+    ) {
+        this.parentPayment = Objects.requireNonNull(parentPayment);
+        this.parentOrder = Objects.requireNonNull(parentOrder);
+        this.ownerUser = Objects.requireNonNull(ownerUser);
+
+        this.pointStatus = PointStatus.NOT_READY_TO_BE_SPENT;
+    }
+
+    public void updatePointStatus(PointStatus status) {
+        this.pointStatus = status;
+    }
+
+    public void updatePointAmount(BigDecimal amount) {
+        this.originalPointAmount = amount;
+        this.pointRemaining = amount;
+    }
 }

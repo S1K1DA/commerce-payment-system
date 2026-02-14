@@ -6,16 +6,20 @@ import com.spartaifive.commercepayment.domain.order.entity.Order;
 import com.spartaifive.commercepayment.domain.order.entity.OrderProduct;
 import com.spartaifive.commercepayment.domain.order.repository.OrderProductRepository;
 import com.spartaifive.commercepayment.domain.order.repository.OrderRepository;
+import com.spartaifive.commercepayment.domain.point.service.DatabaseCleaner;
 import com.spartaifive.commercepayment.domain.product.entity.Product;
 import com.spartaifive.commercepayment.domain.product.entity.ProductCategory;
 import com.spartaifive.commercepayment.domain.product.entity.ProductStatus;
 import com.spartaifive.commercepayment.domain.product.repository.ProductRepository;
 import com.spartaifive.commercepayment.domain.user.entity.MembershipGrade;
 import com.spartaifive.commercepayment.domain.user.entity.User;
+import com.spartaifive.commercepayment.domain.user.repository.MembershipGradeRepository;
 import com.spartaifive.commercepayment.domain.user.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,19 +40,40 @@ public class OrderServiceTest {
     private OrderProductRepository orderProductRepository;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private MembershipGradeRepository membershipGradeRepository;
 
     @Autowired
     private OrderService orderService;
+
+    @Autowired
+    DatabaseCleaner dbCleaner;
+
+    @Autowired
+    JdbcTemplate jdbcTemplate;
+
+    @BeforeEach
+    public void cleanup() {
+        dbCleaner.deleteTables(
+                "order_products",
+                "orders",
+                "payments",
+                "point_audits",
+                "points",
+                "products",
+                "refresh_token",
+                "refunds",
+                "users",
+                "webhook_events"
+        );
+    }
+
 
     @Test
     @Transactional
     public void 단종이나_품절_상품은_결제_불가() {
         // given
-        MembershipGrade membership = MembershipGrade.builder()
-                .id(1L)
-                .name("NORMAL")
-                .rate(1L)
-                .build();
+        MembershipGrade membership = membershipGradeRepository.findByName("NORMAL").get();
 
         User user = User.create(
                 membership,
