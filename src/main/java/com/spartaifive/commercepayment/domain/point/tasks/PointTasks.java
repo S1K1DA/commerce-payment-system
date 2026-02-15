@@ -1,5 +1,6 @@
 package com.spartaifive.commercepayment.domain.point.tasks;
 
+import com.spartaifive.commercepayment.common.constatns.Constants;
 import com.spartaifive.commercepayment.domain.payment.dto.ConfirmedPaymentAndUser;
 import com.spartaifive.commercepayment.domain.payment.entity.Payment;
 import com.spartaifive.commercepayment.domain.payment.repository.PaymentRepository;
@@ -29,6 +30,7 @@ public class PointTasks {
     private final UserRepository userRepository;
     private final MembershipGradeRepository membershipGradeRepository;
     private final PointSupportService pointSupportService;
+    private final Constants constants;
 
     @Scheduled(cron = "${app.schedules.point-membership-batching}")
     @Transactional
@@ -37,17 +39,10 @@ public class PointTasks {
 
         log.info("[POINT_TASK]: started updating user points and memberships");
 
-        // TODO: 현재 한국시각을 기준으로 7일 이전을 기준으로 합니다.
-        // 근데 이게 세계화로 할 경우 어떤 일이 발생할지는 잘 모르겠습니다.
+        // TODO: 현재 시각을 기준으로 refund 기간 이전 결제를 환불 가능 결제로 칭합니다.
+        // 하지만 현재 시각의 기준이 이 컴퓨터를 돌리고 있는 timezone을 기준으로 하기 때문에 명확하지 않은듯 합니다.
 
-        // 가장 가까운 하루로 변경
-        now = now
-                .withHour(0)
-                .withMinute(0)
-                .withSecond(0)
-                .withNano(0);
-
-        LocalDateTime paymentConfirmDay = now.minusDays(7);
+        LocalDateTime paymentConfirmDay = now.minus(constants.getRefundPeriod());
 
         List<Long> userIds = userRepository.findAllUserId();
         List<MembershipGrade> memberships = membershipGradeRepository.findAll();

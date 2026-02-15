@@ -1,5 +1,6 @@
 package com.spartaifive.commercepayment.domain.point.service;
 
+import com.spartaifive.commercepayment.common.constatns.Constants;
 import com.spartaifive.commercepayment.common.util.DatabaseCleaner;
 import com.spartaifive.commercepayment.domain.order.entity.Order;
 import com.spartaifive.commercepayment.domain.order.entity.OrderProduct;
@@ -54,7 +55,7 @@ public class PointTaskTest {
     DatabaseCleaner dbCleaner;
 
     @Autowired
-    JdbcTemplate jdbcTemplate;
+    Constants constants;
 
     @MockitoBean
     private Clock clock;
@@ -81,10 +82,12 @@ public class PointTaskTest {
         // GIVEN
         // ===================
 
-        // 8일 전으로 시간 여행
-        LocalDateTime time8DaysAgo = LocalDateTime.now().minusDays(8);
+        LocalDateTime timeNow = LocalDateTime.now();
 
-        Mockito.when(clock.instant()).thenReturn(time8DaysAgo.atZone(ZoneId.systemDefault()).toInstant());
+        // 환불 기간 이전으로 시간여행
+        LocalDateTime timeBeforeRefund = timeNow.minus(constants.getRefundPeriod()).minusMinutes(1);
+
+        Mockito.when(clock.instant()).thenReturn(timeBeforeRefund.atZone(ZoneId.systemDefault()).toInstant());
         Mockito.when(clock.getZone()).thenReturn(ZoneId.systemDefault());
 
         // user 생성
@@ -146,10 +149,10 @@ public class PointTaskTest {
         }
 
         // 가짜 구매 내역 생성
-        var orderPayment1 = createFakePurchase(user1, BigDecimal.valueOf(1000), time8DaysAgo);
-        var orderPayment2 = createFakePurchase(user2, BigDecimal.valueOf(50000), time8DaysAgo);
-        var orderPayment3 = createFakePurchase(user3, BigDecimal.valueOf(100000), time8DaysAgo);
-        var orderPayment4 = createFakePurchase(user4, BigDecimal.valueOf(150000), time8DaysAgo);
+        var orderPayment1 = createFakePurchase(user1, BigDecimal.valueOf(1000), timeBeforeRefund);
+        var orderPayment2 = createFakePurchase(user2, BigDecimal.valueOf(50000), timeBeforeRefund);
+        var orderPayment3 = createFakePurchase(user3, BigDecimal.valueOf(100000), timeBeforeRefund);
+        var orderPayment4 = createFakePurchase(user4, BigDecimal.valueOf(150000), timeBeforeRefund);
 
         // ===================
         // WHEN
@@ -185,7 +188,7 @@ public class PointTaskTest {
         // ===================
 
         // 현재로 돌아옴
-        Mockito.when(clock.instant()).thenReturn(LocalDateTime.now().atZone(ZoneId.systemDefault()).toInstant());
+        Mockito.when(clock.instant()).thenReturn(timeNow.atZone(ZoneId.systemDefault()).toInstant());
         Mockito.when(clock.getZone()).thenReturn(ZoneId.systemDefault());
 
         // 포인트와 멤버쉽이 맞는지 확인
@@ -221,10 +224,12 @@ public class PointTaskTest {
 
     @RepeatedTest(2)
     public void 포인트는_환불_기간_이전거는_포함되지_않는다() {
-        // 8일 전으로 시간 여행
-        LocalDateTime time8DaysAgo = LocalDateTime.now().minusDays(8);
+        LocalDateTime timeNow = LocalDateTime.now();
 
-        Mockito.when(clock.instant()).thenReturn(time8DaysAgo.atZone(ZoneId.systemDefault()).toInstant());
+        // 8일 전으로 시간 여행
+        LocalDateTime timeBeforeRefund = timeNow.minus(constants.getRefundPeriod()).minusMinutes(1);
+
+        Mockito.when(clock.instant()).thenReturn(timeBeforeRefund.atZone(ZoneId.systemDefault()).toInstant());
         Mockito.when(clock.getZone()).thenReturn(ZoneId.systemDefault());
 
         // user 생성
@@ -256,7 +261,7 @@ public class PointTaskTest {
         }
 
         // 가짜 구매 내역 생성
-        var orderPaymentOld = createFakePurchase(user1, BigDecimal.valueOf(1000), time8DaysAgo);
+        var orderPaymentOld = createFakePurchase(user1, BigDecimal.valueOf(1000), timeBeforeRefund);
 
         // 포인트 생성
         pointService.createPointAfterPaymentConfirm(
@@ -264,8 +269,6 @@ public class PointTaskTest {
                 orderPaymentOld.getFirst().getId(),
                 user1.getId()
         );
-
-        LocalDateTime timeNow = LocalDateTime.now();
 
         // 현재로 돌아옴
         Mockito.when(clock.instant()).thenReturn(timeNow.atZone(ZoneId.systemDefault()).toInstant());
@@ -302,10 +305,10 @@ public class PointTaskTest {
                 user1.getId()
         );
 
-        LocalDateTime time6DaysLater = LocalDateTime.now().plusDays(6);
+        LocalDateTime timeFuture = timeNow.plusNanos(constants.getRefundPeriod().toNanos() / 2);
 
-        // 6일후 미래로 이동
-        Mockito.when(clock.instant()).thenReturn(time6DaysLater.atZone(ZoneId.systemDefault()).toInstant());
+        // 미래로 이동
+        Mockito.when(clock.instant()).thenReturn(timeFuture.atZone(ZoneId.systemDefault()).toInstant());
         Mockito.when(clock.getZone()).thenReturn(ZoneId.systemDefault());
 
         // 포인트 계산
