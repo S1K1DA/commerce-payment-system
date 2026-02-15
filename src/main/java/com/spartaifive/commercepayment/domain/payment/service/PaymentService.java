@@ -65,10 +65,28 @@ public class PaymentService {
 
         BigDecimal expectedAmount = order.getTotalPrice();
 
+        // 1000원 이하의 결제는 금지
+        {
+            BigDecimal tmp = expectedAmount;
+            if (request.pointsToUse() != null) {
+                tmp = expectedAmount.subtract(request.pointsToUse());
+            }
+            if (tmp.compareTo(BigDecimal.valueOf(1000)) < 0) {
+                throw new IllegalArgumentException(
+                        String.format("포인트를 제외, %s원을 결제할려고 하십니다. 1000원 이하의 결제는 불가능 합니다", tmp)
+                );
+            }
+        }
+
+        if (request.pointsToUse() != null) {
+            expectedAmount = pointService.validatedAndSubtractPointFromOrderTotalPrice(
+                    userId, expectedAmount, request.pointsToUse());
+        }
+
         // merchantId 생성
         String merchantPaymentId = "pay_" + UUID.randomUUID();
 
-        Payment payment = Payment.createAttempt(userId, order, expectedAmount, merchantPaymentId);
+        Payment payment = Payment.createAttempt(userId, order, expectedAmount, request.pointsToUse(), merchantPaymentId);
         Payment savedPayment = paymentRepository.save(payment);
 
         return PaymentAttemptResponse.from(savedPayment);
@@ -422,6 +440,14 @@ public class PaymentService {
         Payment saved = paymentRepository.save(payment);
         orderRepository.save(order);
 
+        // point 사용
+        if (payment.getPointToSpend() != null) {
+            pointService.spendPoint(
+                    payment.getId(),
+                    order.getId(),
+                    payment.getUserId()
+            );
+        }
 
         // point 적립
         pointService.createPointAfterPaymentConfirm(
