@@ -56,6 +56,7 @@ public enum ErrorCode {
     ERR_REFUND_NOT_ALLOWED_ORDER_STATUS(HttpStatus.CONFLICT, "환불이 불가능한 주문 상태입니다"),
     ERR_REFUND_NOT_ALLOWED_PAYMENT_STATUS(HttpStatus.CONFLICT, "환불이 불가능한 결제 상태입니다"),
     ERR_REFUND_AMOUNT_UNKNOWN(HttpStatus.CONFLICT, "환불 금액을 확인할 수 없습니다"),
+    ERR_REFUND_AMOUNT_MISMATCH(HttpStatus.CONFLICT, "환불 금액이 일치하지 않습니다"),
 
     // ===== 외부 연동(PortOne) =====
     ERR_PORTONE_RESPONSE_NULL(HttpStatus.BAD_GATEWAY, "PortOne 응답이 null 입니다"),

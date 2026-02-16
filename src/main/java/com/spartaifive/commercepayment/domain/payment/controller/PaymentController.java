@@ -11,11 +11,14 @@ import com.spartaifive.commercepayment.domain.payment.dto.response.PaymentAttemp
 import com.spartaifive.commercepayment.domain.payment.dto.response.RefundResponse;
 import com.spartaifive.commercepayment.domain.payment.service.PaymentService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+@Validated
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/payments")
@@ -32,18 +35,9 @@ public class PaymentController {
                 .body(DataResponse.success(HttpStatus.CREATED.name(), response));
     }
 
-    @PostMapping("/confirm")
-    public ResponseEntity<DataResponse<ConfirmPaymentResponse>> confirmPayment(
-            @Valid @RequestBody ConfirmPaymentRequest request) {
-        Long userId = AuthUtil.getCurrentUserId();
-        ConfirmPaymentResponse response = paymentService.confirmPayment(userId, request);
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(DataResponse.success(HttpStatus.OK.name(), response));
-    }
-
     @PostMapping("/{paymentId}/confirm")
     public ResponseEntity<DataResponse<ConfirmPaymentResponse>> confirmByPaymentId(
-            @PathVariable String paymentId) {
+            @PathVariable @NotBlank(message = "paymentId는 필수입니다") String paymentId) {
         Long userId = AuthUtil.getCurrentUserId();
         ConfirmPaymentResponse response = paymentService.confirmByPaymentId(userId, paymentId);
         return ResponseEntity.status(HttpStatus.OK)
