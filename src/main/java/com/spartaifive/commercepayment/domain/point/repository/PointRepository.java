@@ -2,6 +2,8 @@ package com.spartaifive.commercepayment.domain.point.repository;
 
 import com.spartaifive.commercepayment.domain.point.dto.MembershipUpdateInfo;
 import com.spartaifive.commercepayment.domain.point.dto.PointUpdateInfo;
+import com.spartaifive.commercepayment.domain.point.dto.UserAndReadyPointsTotal;
+import com.spartaifive.commercepayment.domain.point.dto.UserAndNotReadyPointsInfo;
 import com.spartaifive.commercepayment.domain.point.entity.Point;
 import com.spartaifive.commercepayment.domain.point.entity.PointStatus;
 import com.spartaifive.commercepayment.domain.user.entity.User;
@@ -47,7 +49,7 @@ public interface PointRepository extends JpaRepository<Point, Long> {
             @Param("userIds") Collection<Long> userIds, @Param("paymentConfirmDay")LocalDateTime paymentConfirmDay);
 
     @Query(
-            "SELECT new com.spartaifive.commercepayment.domain.point.dto.MembershipUpdateInfo(u, SUM(pay.actualAmount)) from User u " +
+            "SELECT new com.spartaifive.commercepayment.domain.point.dto.MembershipUpdateInfo(u, COALESCE (SUM(pay.actualAmount), 0)) from User u " +
             "LEFT JOIN Payment pay on u.id = pay.userId " +
             "where u.id in :userIds AND " +
             "pay.paidAt < :paymentConfirmDay AND " +
@@ -56,4 +58,24 @@ public interface PointRepository extends JpaRepository<Point, Long> {
     )
     List<MembershipUpdateInfo> getMembershipUpdateInfo(
             @Param("userIds") Collection<Long> userIds, @Param("paymentConfirmDay")LocalDateTime paymentConfirmDay);
+
+    @Query(
+            "SELECT new com.spartaifive.commercepayment.domain.point.dto.UserAndReadyPointsTotal(u.id, COALESCE (SUM(p.pointRemaining), 0)) from User u " +
+            "LEFT JOIN Point p on u.id = p.ownerUser.id " +
+            "AND p.pointStatus = com.spartaifive.commercepayment.domain.point.entity.PointStatus.CAN_BE_SPENT " +
+            "WHERE u.id IN :userIds " +
+            "GROUP BY u.id"
+    )
+    List<UserAndReadyPointsTotal> getUserAndReadyPointsTotal(@Param("userIds") Collection<Long> userIds);
+
+    @Query(
+            "SELECT new com.spartaifive.commercepayment.domain.point.dto.UserAndNotReadyPointsInfo(u.id, m.rate, COALESCE(SUM(pay.actualAmount), 0)) from User u " +
+            "LEFT JOIN Point p on u.id = p.ownerUser.id " +
+            "AND p.pointStatus = com.spartaifive.commercepayment.domain.point.entity.PointStatus.NOT_READY_TO_BE_SPENT " +
+            "LEFT JOIN MembershipGrade m on u.membershipGrade.id = m.id " +
+            "LEFT JOIN Payment pay on p.parentPayment.id = pay.id " +
+            "WHERE u.id IN :userIds " +
+            "GROUP BY u.id"
+    )
+    List<UserAndNotReadyPointsInfo> getUserAndNotReadyPointsInfo(@Param("userIds") Collection<Long> userIds);
 }

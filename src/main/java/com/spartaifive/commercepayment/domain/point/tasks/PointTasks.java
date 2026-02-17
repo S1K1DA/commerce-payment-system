@@ -1,11 +1,6 @@
 package com.spartaifive.commercepayment.domain.point.tasks;
 
 import com.spartaifive.commercepayment.common.constants.Constants;
-import com.spartaifive.commercepayment.domain.payment.entity.Payment;
-import com.spartaifive.commercepayment.domain.payment.repository.PaymentRepository;
-import com.spartaifive.commercepayment.domain.point.entity.Point;
-import com.spartaifive.commercepayment.domain.point.entity.PointStatus;
-import com.spartaifive.commercepayment.domain.point.repository.PointRepository;
 import com.spartaifive.commercepayment.domain.point.service.PointSupportService;
 import com.spartaifive.commercepayment.domain.user.entity.MembershipGrade;
 import com.spartaifive.commercepayment.domain.user.repository.MembershipGradeRepository;
@@ -73,7 +68,7 @@ public class PointTasks {
                 pointSupportService.updateUserPoints(
                         subUsers, memberships, paymentConfirmDay);
             }catch(Exception e) {
-                log.error("[POINT_TASK]: failed to update users {}-{} {} point: {}", begin, end, e.getMessage());
+                log.error("[POINT_TASK]: failed to update users points {}-{} {}", begin, end, e.getMessage());
 
                 continue; // 고객의 포인트가 업데이트 되지 않으면 포인트 총량을 계산 할 수 없으므로 skip
             }
@@ -81,7 +76,7 @@ public class PointTasks {
             try {
                 pointSupportService.updateUserPointsTotal(subUsers);
             } catch(Exception e) {
-                log.error("[POINT_TASK]: failed to update users {}-{} {} point total: {}", begin, end, e.getMessage());
+                log.error("[POINT_TASK]: failed to update users points total {}-{} {}", begin, end, e.getMessage());
             }
 
             userCursor += BATCH_SIZE;

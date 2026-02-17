@@ -4,10 +4,11 @@ import com.spartaifive.commercepayment.common.exception.ErrorCode;
 import com.spartaifive.commercepayment.common.exception.ServiceErrorException;
 import com.spartaifive.commercepayment.domain.order.repository.OrderRepository;
 import com.spartaifive.commercepayment.domain.payment.entity.Payment;
-import com.spartaifive.commercepayment.domain.payment.entity.PaymentStatus;
 import com.spartaifive.commercepayment.domain.payment.repository.PaymentRepository;
 import com.spartaifive.commercepayment.domain.point.dto.MembershipUpdateInfo;
 import com.spartaifive.commercepayment.domain.point.dto.PointUpdateInfo;
+import com.spartaifive.commercepayment.domain.point.dto.UserAndReadyPointsTotal;
+import com.spartaifive.commercepayment.domain.point.dto.UserAndNotReadyPointsInfo;
 import com.spartaifive.commercepayment.domain.point.entity.Point;
 import com.spartaifive.commercepayment.domain.point.entity.PointAudit;
 import com.spartaifive.commercepayment.domain.point.entity.PointAuditType;
@@ -27,7 +28,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -122,41 +125,38 @@ public class PointSupportService {
     public void updateUserPointsTotal(
             List<Long> userIds
     ) {
-        for (Long userId : userIds) {
-            User user = userRepository.findById(userId).orElseThrow(
-                    () -> new ServiceErrorException(ErrorCode.ERR_USER_NOT_FOUND)
-            );
+        Map<Long, User> idToUser = new HashMap<>();
 
-            List<Point> points = pointRepository.findPointByOwnerUser(user);
+        List<User> users = userRepository.findAllUsersByIds(userIds);
 
-            BigDecimal pointsReadyToSpend = BigDecimal.ZERO;
-            BigDecimal pointsNotReadyToSpend = BigDecimal.ZERO;
-
-            MembershipGrade membership = user.getMembershipGrade();
-
-            for (Point point : points) {
-                if (point.getPointStatus().equals(PointStatus.CAN_BE_SPENT)) {
-                    pointsReadyToSpend = pointsReadyToSpend.add(point.getPointRemaining());
-                }
-
-                if (
-                        membership != null &&
-                        point.getPointStatus().equals(PointStatus.NOT_READY_TO_BE_SPENT)
-                ) {
-                    BigDecimal pointAmount = getPointAmountPerPurchase(
-                            point.getParentPayment().getActualAmount(),
-                            membership.getRate()
-                    );
-                    
-                    pointsNotReadyToSpend = pointsNotReadyToSpend.add(pointAmount);
-                }
-            }
-
-            user.updatePointsReadyToSpendClamped(pointsReadyToSpend);
-            user.updatePointsNotReadyToSpendClamped(pointsNotReadyToSpend);
-
-            userRepository.save(user);
+        for (User user : users) {
+            idToUser.put(user.getId(), user);
         }
+
+        List<UserAndReadyPointsTotal> pointTotals = pointRepository.getUserAndReadyPointsTotal(userIds);
+
+        for (UserAndReadyPointsTotal total : pointTotals)  {
+            User user = idToUser.get(total.userId());
+            if (user != null) {
+                user.updatePointsReadyToSpendClamped(total.amount());
+            }
+        }
+
+        List<UserAndNotReadyPointsInfo> infos = pointRepository.getUserAndNotReadyPointsInfo(userIds);
+
+        for (UserAndNotReadyPointsInfo info : infos) {
+            User user = idToUser.get(info.userId());
+            if (user != null) {
+                 BigDecimal pointAmount = getPointAmountPerPurchase(
+                         info.paymentTotal(),
+                         info.membershipRate()
+                 );
+
+                 user.updatePointsNotReadyToSpendClamped(pointAmount);
+            }
+        }
+
+        userRepository.saveAll(users);
     }
 
     @Transactional(readOnly = true)
@@ -164,27 +164,28 @@ public class PointSupportService {
             Long userId, 
             boolean confirmedOnly
     ) {
-        User user = userRepository.findById(userId).orElseThrow(
-                () -> new ServiceErrorException(ErrorCode.ERR_USER_NOT_FOUND)
-        );
+        List<UserAndReadyPointsTotal> totals = pointRepository.getUserAndReadyPointsTotal(List.of(userId));
 
-        List<Point> points = pointRepository.findPointByOwnerUser_Id(userId);
-        BigDecimal total = BigDecimal.ZERO;
-
-        for (Point point : points) {
-            if (point.getPointStatus().equals(PointStatus.CAN_BE_SPENT)) {
-                total = total.add(point.getPointRemaining());
-            }
-
-            if (!confirmedOnly && point.getPointStatus().equals(PointStatus.NOT_READY_TO_BE_SPENT)) {
-                BigDecimal paymentAmount = point.getParentPayment().getActualAmount();
-                Long rate = user.getMembershipGrade().getRate();
-                total = total.add(
-                        getPointAmountPerPurchase(paymentAmount, rate));
-            }
+        if (!(totals.size() == 1 && totals.get(0).userId().equals(userId))) {
+            throw new ServiceErrorException(ErrorCode.ERR_POINT_FAILED_TO_CALCULATE_TOTAL);
         }
 
-        return total;
+        if (confirmedOnly) {
+            return totals.get(0).amount();
+        }
+
+        List<UserAndNotReadyPointsInfo> infos = pointRepository.getUserAndNotReadyPointsInfo(List.of(userId));
+
+        if (!(infos.size() == 1 && infos.get(0).userId().equals(userId))) {
+            throw new ServiceErrorException(ErrorCode.ERR_POINT_FAILED_TO_CALCULATE_TOTAL);
+        }
+
+        BigDecimal pointsNotConfirmed = getPointAmountPerPurchase(
+            infos.get(0).paymentTotal(),
+            infos.get(0).membershipRate()
+        );
+
+        return totals.get(0).amount().add(pointsNotConfirmed);
     }
 
     // ============
