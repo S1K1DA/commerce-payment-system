@@ -92,62 +92,34 @@ public class PointTaskTest {
         Mockito.when(clock.getZone()).thenReturn(ZoneId.systemDefault());
 
         // user 생성
-        User user1;
-        User user2;
-        User user3;
-        User user4;
-
-        {
-            MembershipGrade membership = membershipGradeRepository.findByName("NORMAL").get();
-            EntityManager em = emf.createEntityManager();
-
-            try {
-                EntityTransaction tx = em.getTransaction();
-                tx.begin();
-
-                user1 = User.create(
-                        membership,
-                        "김희찬",
-                        "user1@gmail.com",
-                        passwordEncoder.encode("1234qwer"),
-                        "01011112222"
-                );
-
-                user2 = User.create(
-                        membership,
-                        "김이선",
-                        "user2@gmail.com",
-                        passwordEncoder.encode("1234qwer"),
-                        "01033334444"
-                );
-
-                user3 = User.create(
-                        membership,
-                        "이착혁",
-                        "user3@gmail.com",
-                        passwordEncoder.encode("1234qwer"),
-                        "01055556666"
-                );
-
-                user4 = User.create(
-                        membership,
-                        "조용필",
-                        "user4@gmail.com",
-                        passwordEncoder.encode("1234qwer"),
-                        "01077778888"
-                );
-
-                em.persist(user1);
-                em.persist(user2);
-                em.persist(user3);
-                em.persist(user4);
-                em.flush();
-
-                tx.commit();
-            } finally {
-                em.close();
-            }
-        }
+        User user1 = createFakeUser(
+                "NORMAL",
+                "김희찬",
+                "user1@gmail.com",
+                "1234qwer",
+                "01011112222"
+        );
+        User user2 = createFakeUser(
+                "NORMAL",
+                "김이선",
+                "user2@gmail.com",
+                "1234qwer",
+                "01033334444"
+        );
+        User user3 = createFakeUser(
+                "NORMAL",
+                "이착혁",
+                "user3@gmail.com",
+                "1234qwer",
+                "01055556666"
+        );
+        User user4 = createFakeUser(
+                "NORMAL",
+                "조용필",
+                "user4@gmail.com",
+                "1234qwer",
+                "01077778888"
+        );
 
         // 가짜 구매 내역 생성
         var orderPayment1 = createFakePurchase(user1, BigDecimal.valueOf(1000), timeBeforeRefund);
@@ -234,32 +206,13 @@ public class PointTaskTest {
         Mockito.when(clock.getZone()).thenReturn(ZoneId.systemDefault());
 
         // user 생성
-        User user1;
-
-        {
-            MembershipGrade membership = membershipGradeRepository.findByName("NORMAL").get();
-            EntityManager em = emf.createEntityManager();
-
-            try {
-                EntityTransaction tx = em.getTransaction();
-                tx.begin();
-
-                user1 = User.create(
-                        membership,
-                        "김희찬",
-                        "user1@gmail.com",
-                        passwordEncoder.encode("1234qwer"),
-                        "01011112222"
-                );
-
-                em.persist(user1);
-                em.flush();
-
-                tx.commit();
-            } finally {
-                em.close();
-            }
-        }
+        User user1 = createFakeUser(
+            "NORMAL",
+            "김희찬",
+            "user1@gmail.com",
+            "1234qwer",
+            "01011112222"
+        );
 
         // 가짜 구매 내역 생성
         var orderPaymentOld = createFakePurchase(user1, BigDecimal.valueOf(1000), timeBeforeRefund);
@@ -331,6 +284,41 @@ public class PointTaskTest {
             } finally {
                 em.close();
             }
+        }
+    }
+
+    private User createFakeUser (
+            String membershipGradeName,
+            String userName,
+            String email,
+            String password,
+            String phoneNumber
+    ) {
+
+        MembershipGrade membership = membershipGradeRepository.findByName(membershipGradeName).get();
+
+        EntityManager em = emf.createEntityManager();
+
+        try {
+            EntityTransaction tx = em.getTransaction();
+            tx.begin();
+
+            User user = User.create(
+                    membership,
+                    userName,
+                    email,
+                    passwordEncoder.encode(password),
+                    phoneNumber
+            );
+
+            em.persist(user);
+            em.flush();
+
+            tx.commit();
+
+            return user;
+        } finally {
+            em.close();
         }
     }
 
