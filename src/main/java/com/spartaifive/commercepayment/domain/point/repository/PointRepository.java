@@ -1,7 +1,6 @@
 package com.spartaifive.commercepayment.domain.point.repository;
 
 import com.spartaifive.commercepayment.domain.point.dto.MembershipUpdateInfo;
-import com.spartaifive.commercepayment.domain.point.dto.PointTotalUpdateInfo;
 import com.spartaifive.commercepayment.domain.point.dto.PointUpdateInfo;
 import com.spartaifive.commercepayment.domain.point.entity.Point;
 import com.spartaifive.commercepayment.domain.point.entity.PointStatus;
