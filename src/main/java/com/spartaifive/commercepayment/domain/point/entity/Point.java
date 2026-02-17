@@ -47,7 +47,7 @@ public class Point {
     @JoinColumn(nullable = false, name = "owner_user_id")
     User ownerUser;
 
-    // TODO: 왜 nullable인지 설명하기
+    // 포인트의 실제 양은 포인트 확정시 (포인트를 생성한 결제가 환불 불가능해진 이후) 정해집니다
     @Column(precision = 10, scale = 2, nullable = true)
     BigDecimal originalPointAmount;
     @Column(precision = 10, scale = 2, nullable = true)
