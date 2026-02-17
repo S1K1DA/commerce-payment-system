@@ -41,45 +41,6 @@ public class PointSupportService {
     private final PointAuditRepository pointAuditRepository;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void updateUserMembership2(
-            Long userId,
-            List<MembershipGrade> membershipGrades,
-            LocalDateTime paymentConfirmDay
-    ) {
-        User user = userRepository.findById(userId).orElseThrow(
-                () -> new ServiceErrorException(ErrorCode.ERR_USER_NOT_FOUND)
-        );
-
-        List<Payment> payments = paymentRepository.findByUserId(user.getId());
-
-        BigDecimal confirmedPaymentTotal = BigDecimal.ZERO;
-
-        for (Payment p : payments) {
-            if (
-                    p.getPaymentStatus().equals(PaymentStatus.PAID) &&
-                    p.getPaidAt().isBefore(paymentConfirmDay)
-            ) {
-                confirmedPaymentTotal = confirmedPaymentTotal.add(p.getActualAmount());
-            }
-        }
-
-        MembershipGrade userMembership = null;
-
-        for (MembershipGrade membershipGrade : membershipGrades) {
-            if (confirmedPaymentTotal.compareTo(membershipGrade.getRequiredPurchaseAmount()) <= 0) {
-                userMembership = membershipGrade;
-                break;
-            }
-        }
-
-        if (userMembership != null) {
-            user.updateMembership(userMembership);
-            userRepository.save(user);
-        }
-    }
-
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updateUserMembership(
             List<Long> userIds,
             List<MembershipGrade> membershipGrades,
@@ -109,53 +70,6 @@ public class PointSupportService {
         }
 
         userRepository.saveAll(users);
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void updateUserPoints2(
-            Long userId,
-            List<MembershipGrade> membershipGrades,
-            LocalDateTime paymentConfirmDay
-    ) {
-        User user = userRepository.findById(userId).orElseThrow(
-                () -> new ServiceErrorException(ErrorCode.ERR_USER_NOT_FOUND)
-        );
-
-        MembershipGrade membership = user.getMembershipGrade();
-        if (membership == null) {
-            return;
-        }
-
-        List<Point> points = pointRepository.findPointByOwnerUser(user);
-        List<PointAudit> audits = new ArrayList<>();
-
-        for (Point point : points) {
-            if (
-                    point.getPointStatus().equals(PointStatus.NOT_READY_TO_BE_SPENT) &&
-                    point.getParentPayment().getPaidAt().isBefore(paymentConfirmDay)
-            ) {
-                BigDecimal pointAmount = getPointAmountPerPurchase(
-                        point.getParentPayment().getActualAmount(),
-                        membership.getRate()
-                );
-                point.initPointAmount(pointAmount);
-                point.updatePointStatus(PointStatus.CAN_BE_SPENT);
-
-                PointAudit audit = new PointAudit(
-                        user,
-                        point.getParentOrder(),
-                        point.getParentPayment(),
-                        point,
-                        PointAuditType.POINT_BECAME_READY,
-                        pointAmount
-                );
-
-                audits.add(audit);
-            }
-        }
-
-        pointRepository.saveAll(points);
-        pointAuditRepository.saveAll(audits);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -202,6 +116,47 @@ public class PointSupportService {
 
         pointRepository.saveAll(pointsToSave);
         pointAuditRepository.saveAll(audits);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void updateUserPointsTotal(
+            List<Long> userIds
+    ) {
+        for (Long userId : userIds) {
+            User user = userRepository.findById(userId).orElseThrow(
+                    () -> new ServiceErrorException(ErrorCode.ERR_USER_NOT_FOUND)
+            );
+
+            List<Point> points = pointRepository.findPointByOwnerUser(user);
+
+            BigDecimal pointsReadyToSpend = BigDecimal.ZERO;
+            BigDecimal pointsNotReadyToSpend = BigDecimal.ZERO;
+
+            MembershipGrade membership = user.getMembershipGrade();
+
+            for (Point point : points) {
+                if (point.getPointStatus().equals(PointStatus.CAN_BE_SPENT)) {
+                    pointsReadyToSpend = pointsReadyToSpend.add(point.getPointRemaining());
+                }
+
+                if (
+                        membership != null &&
+                        point.getPointStatus().equals(PointStatus.NOT_READY_TO_BE_SPENT)
+                ) {
+                    BigDecimal pointAmount = getPointAmountPerPurchase(
+                            point.getParentPayment().getActualAmount(),
+                            membership.getRate()
+                    );
+                    
+                    pointsNotReadyToSpend = pointsNotReadyToSpend.add(pointAmount);
+                }
+            }
+
+            user.updatePointsReadyToSpendClamped(pointsReadyToSpend);
+            user.updatePointsNotReadyToSpendClamped(pointsNotReadyToSpend);
+
+            userRepository.save(user);
+        }
     }
 
     @Transactional(readOnly = true)

@@ -84,8 +84,20 @@ public class PointService {
                 PointAuditType.POINT_CREATED
         );
 
+        // 유저의 사용 불가 포인트 증가
+        {
+            BigDecimal currentPoints = user.getPointsNotReadyToSpend();
+            BigDecimal toAdd = PointSupportService.getPointAmountPerPurchase(
+                    payment.getActualAmount(),
+                    user.getMembershipGrade().getRate()
+            );
+
+            user.updatePointsNotReadyToSpendClamped(currentPoints.add(toAdd));
+        }
+
         pointRepository.save(point);
         pointAuditRepository.save(audit);
+        userRepository.save(user);
     }
 
     @Transactional(readOnly = true)
@@ -187,6 +199,15 @@ public class PointService {
         }
 
         pointAuditRepository.saveAll(pointAudits);
+
+        // 고객의 총 사용 가능 포인트 양을 업데이트
+        {
+            BigDecimal newAmount = userPoints.subtract(pointToSpend);
+            if (user.updatePointsReadyToSpendClamped(newAmount)) {
+                log.error("[POINT_SERVICE]: tried to set user {} pointsReadyToSpend below zero", user.getId());
+            }
+            userRepository.save(user);
+        }
     }
 
     @Transactional()
@@ -195,11 +216,11 @@ public class PointService {
             Long orderId,
             Long userId
     ) {
-        Payment payment = paymentRepository.getReferenceById(paymentId);
+        Payment payment = getPaymentById(paymentId);
 
         Order order = orderRepository.getReferenceById(orderId);
 
-        User user = userRepository.getReferenceById(userId);
+        User user = getUserById(userId);
 
         List<Point> points = pointRepository.getPointsToVoidPerUserAndPayment(userId, paymentId);
         List<PointAudit> pointAudits = new ArrayList<>();
@@ -220,6 +241,19 @@ public class PointService {
 
         pointAuditRepository.saveAll(pointAudits);
         pointRepository.saveAll(points);
+
+        // 고객의 총 사용 불가능 포인트를 감소
+        {
+            BigDecimal currentPoints = user.getPointsNotReadyToSpend();
+            BigDecimal toSubtract = PointSupportService.getPointAmountPerPurchase(
+                    payment.getActualAmount(),
+                    user.getMembershipGrade().getRate()
+            );
+
+            if (user.updatePointsNotReadyToSpendClamped(currentPoints.subtract(toSubtract))) {
+                log.error("[POINT_SERVICE]: tried to set user {} pointsReadyToSpend below zero", user.getId());
+            }
+        }
     }
 
     private Payment getPaymentById(Long paymentId) {

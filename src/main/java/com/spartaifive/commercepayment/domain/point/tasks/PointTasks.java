@@ -74,6 +74,14 @@ public class PointTasks {
                         subUsers, memberships, paymentConfirmDay);
             }catch(Exception e) {
                 log.error("[POINT_TASK]: failed to update users {}-{} {} point: {}", begin, end, e.getMessage());
+
+                continue; // 고객의 포인트가 업데이트 되지 않으면 포인트 총량을 계산 할 수 없으므로 skip
+            }
+
+            try {
+                pointSupportService.updateUserPointsTotal(subUsers);
+            } catch(Exception e) {
+                log.error("[POINT_TASK]: failed to update users {}-{} {} point total: {}", begin, end, e.getMessage());
             }
 
             userCursor += BATCH_SIZE;

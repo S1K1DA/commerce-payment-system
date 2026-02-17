@@ -1,6 +1,7 @@
 package com.spartaifive.commercepayment.domain.point.repository;
 
 import com.spartaifive.commercepayment.domain.point.dto.MembershipUpdateInfo;
+import com.spartaifive.commercepayment.domain.point.dto.PointTotalUpdateInfo;
 import com.spartaifive.commercepayment.domain.point.dto.PointUpdateInfo;
 import com.spartaifive.commercepayment.domain.point.entity.Point;
 import com.spartaifive.commercepayment.domain.point.entity.PointStatus;
@@ -40,6 +41,7 @@ public interface PointRepository extends JpaRepository<Point, Long> {
             "JOIN p.ownerUser.membershipGrade membership " +
             "WHERE p.pointStatus = com.spartaifive.commercepayment.domain.point.entity.PointStatus.NOT_READY_TO_BE_SPENT AND " +
             "pay.paidAt < :paymentConfirmDay AND " +
+            "pay.paymentStatus = com.spartaifive.commercepayment.domain.payment.entity.PaymentStatus.PAID AND " +
             "p.ownerUser.id IN :userIds"
     )
     List<PointUpdateInfo> getPointUpdateInfos(
