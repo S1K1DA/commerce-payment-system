@@ -74,6 +74,10 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           RDS_ENDPOINT: ${{ secrets.RDS_ENDPOINT }}
           PORTONE_WEBHOOK_SECRET: ${{ secrets.PORTONE_WEBHOOK_SECRET }}
+          PORTONE_API_SECRET: ${{ secrets.PORTONE_API_SECRET }}
+          PORTONE_KG_CHANNEL_KEY: ${{ secrets.PORTONE_KG_CHANNEL_KEY }}
+          PORTONE_TOSS_CHANNEL_KEY: ${{ secrets.PORTONE_TOSS_CHANNEL_KEY }}
+
 
         run: |
           cat > ssm-params.json <<JSON
@@ -91,6 +95,9 @@ jobs:
                 -e SPRING_DATASOURCE_USERNAME=$DB_USERNAME \
                 -e SPRING_DATASOURCE_PASSWORD=$DB_PASSWORD \
                 -e PORTONE_WEBHOOK_SECRET=$PORTONE_WEBHOOK_SECRET \
+                -e PORTONE_API_SECRET=$PORTONE_API_SECRET \
+                -e PORTONE_KG_CHANNEL_KEY=$PORTONE_KG_CHANNEL_KEY \
+                -e PORTONE_TOSS_CHANNEL_KEY=$PORTONE_TOSS_CHANNEL_KEY \
                 --restart always \
                 \"$DOCKERHUB_USERNAME/commerce-payment:$IMAGE_TAG\"",
               "docker ps | grep commerce-payment"
