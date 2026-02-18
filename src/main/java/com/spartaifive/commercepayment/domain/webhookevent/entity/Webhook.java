@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import com.spartaifive.commercepayment.common.service.TimeService;
+
 import java.time.LocalDateTime;
 
 @Getter
@@ -32,12 +34,12 @@ public class Webhook {
     private String paymentId;
 
     @CreatedDate
+    private LocalDateTime createdAt;
+
     @Column(nullable = false)
     private LocalDateTime receivedAt;
 
     private LocalDateTime completedAt;
-
-
 
     public Webhook(String webhookId, String paymentId, LocalDateTime receivedAt) {
         this.webhookId = webhookId;
@@ -48,14 +50,11 @@ public class Webhook {
 
     public void processed() {
         this.status = EventStatus.PROCESSED;
-        this.completedAt = LocalDateTime.now();
+        this.completedAt = TimeService.getCurrentTime();
     }
 
     public void failed() {
         this.status = EventStatus.FAILED;
-        this.completedAt = LocalDateTime.now();
+        this.completedAt = TimeService.getCurrentTime();
     }
-
-
-
 }
