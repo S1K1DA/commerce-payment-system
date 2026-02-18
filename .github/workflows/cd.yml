@@ -86,6 +86,7 @@ jobs:
               "docker rm commerce-payment || true",
               "docker run -d --name commerce-payment -p 8080:8080 \
                 -e SPRING_PROFILES_ACTIVE=prod \
+                -e SPRING_JPA_HIBERNATE_DDL_AUTO=create \
                 -e SPRING_DATASOURCE_URL=jdbc:mysql://$RDS_ENDPOINT:3306/commerce \
                 -e SPRING_DATASOURCE_USERNAME=$DB_USERNAME \
                 -e SPRING_DATASOURCE_PASSWORD=$DB_PASSWORD \
