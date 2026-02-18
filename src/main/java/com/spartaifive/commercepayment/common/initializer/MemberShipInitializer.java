@@ -22,8 +22,10 @@ public class MemberShipInitializer implements ApplicationRunner {
 
     @Transactional
     public void run(ApplicationArguments args) throws Exception {
-        membershipGradeRepository.save(new MembershipGrade("NORMAL", 1L));
-        membershipGradeRepository.save(new MembershipGrade("VIP", 3L));
-        membershipGradeRepository.save(new MembershipGrade("VVIP", 5L));
+        if (membershipGradeRepository.count() == 0) {
+            membershipGradeRepository.save(new MembershipGrade("NORMAL", 1L));
+            membershipGradeRepository.save(new MembershipGrade("VIP", 3L));
+            membershipGradeRepository.save(new MembershipGrade("VVIP", 5L));
+        }
     }
 }

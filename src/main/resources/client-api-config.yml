@@ -20,7 +20,7 @@
 #    클라이언트는 방법 2, 3을 사용하면 수정 불필요!
 
 api:
-  base-url: http://localhost:8080
+  base-url: ""
 
   # API 엔드포인트 및 계약 정의
   endpoints:
@@ -30,7 +30,7 @@ api:
     login:
       url: /api/auth/login
       method: POST
-      description: 사용자 로그인
+      description: 사용자 로그인3
       request:
         fields:
           - name: email

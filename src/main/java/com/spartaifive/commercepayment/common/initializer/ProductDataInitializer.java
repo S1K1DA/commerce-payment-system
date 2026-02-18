@@ -28,6 +28,11 @@ public class ProductDataInitializer implements ApplicationRunner {
 
     @Transactional
     public void run(ApplicationArguments args) throws Exception {
+
+        if (productRepository.count() > 0) {
+            return; // 이미 데이터 있으면 종료
+        }
+
         List<Product> testProducts = List.of(
                 new Product("포카칩", new BigDecimal("1000"), 10L, ProductStatus.ON_SALE, ProductCategory.FOOD, "맛있는 감자칩"),
                 new Product("배터리", new BigDecimal("2000"), 1L, ProductStatus.ON_SALE, ProductCategory.ELECTRONICS, "AA 배터리"),
