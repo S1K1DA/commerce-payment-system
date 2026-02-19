@@ -18,6 +18,12 @@ app:
   add-test-products: true
   add-test-memberships: true
 
+  schedules:
+    point-membership-batching: "*/30 * * * * *"
+
+  business:
+    refund-period: 2m
+
 portone:
   api:
     base-url: https://api.portone.io
@@ -29,4 +35,6 @@ portone:
   channel:
     kg-inicis: ${PORTONE_KG_CHANNEL_KEY}
     toss: ${PORTONE_TOSS_CHANNEL_KEY}
+
+
 
